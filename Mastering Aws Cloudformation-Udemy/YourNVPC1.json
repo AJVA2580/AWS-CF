@@ -1,0 +1,430 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "",
+  "Metadata": {},
+  "Parameters": {
+    "YourVPCNameCidr": {
+      "Description": "Choose Cidr for Vpc",
+      "Type": "String",
+      "Default": "10.23.0.0/16"
+    },
+    "Subnet1Cidr": {
+      "Description": "Choose Cidr for Subnet1",
+      "Type": "String",
+      "Default": "10.23.1.0/24"
+    },
+    "Subnet2Cidr": {
+      "Description": "Choose Cidr for Subnet1",
+      "Type": "String",
+      "Default": "10.23.2.0/24"
+    },
+    "Subnet1AZs": {
+      "Description": "Choose AZ for Subnet1",
+      "Type": "AWS::EC2::AvailabilityZone::Name"
+    },
+    "Subnet2AZs": {
+      "Description": "Choose AZ for Subnet1",
+      "Type": "AWS::EC2::AvailabilityZone::Name"
+    },
+    "WebserverKeyName": {
+      "Description": "Choose Key Name",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "WebserverInstanceType": {
+      "Description": "Choose Instance Type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t2.micro",
+        "t2.nano",
+        "t2.small"
+      ]
+    }
+  },
+  "Mappings": {
+    "RegionMap": {
+      "us-east-1": {
+        "64": "ami-14c5486b"
+      },
+      "us-east-2": {
+        "64": "ami-922914f7"
+      }
+    }
+  },
+  "Conditions": {},
+  "Resources": {
+    "YourNameVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "YourVPCNameCidr"
+        },
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourVPCName"
+          }
+        ]
+      }
+    },
+    "Subnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "MapPublicIpOnLaunch": true,
+        "AvailabilityZone": {
+          "Ref": "Subnet1AZs"
+        },
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "CidrBlock": {
+          "Ref": "Subnet1Cidr"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Subnet1"
+          }
+        ]
+      }
+    },
+    "Subnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "MapPublicIpOnLaunch": true,
+        "AvailabilityZone": {
+          "Ref": "Subnet2AZs"
+        },
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "CidrBlock": {
+          "Ref": "Subnet2Cidr"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Subnet2"
+          }
+        ]
+      }
+    },
+    "YourNameIGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourNameIGW"
+          }
+        ]
+      }
+    },
+    "AttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "YourNameIGW"
+        }
+      }
+    },
+    "YourNameRT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourNametRT"
+          }
+        ]
+      }
+    },
+    "YourNameRouteIGW": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "YourNameRT"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "YourNameIGW"
+        }
+      }
+    },
+    "Subnet1TAssoc": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet1"
+        },
+        "RouteTableId": {
+          "Ref": "YourNameRT"
+        }
+      }
+    },
+    "Subnet2RTAssoc": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet2"
+        },
+        "RouteTableId": {
+          "Ref": "YourNameRT"
+        }
+      }
+    },
+    "YourSecurityGroupName": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "YourSecurityGroupName",
+        "GroupDescription": "SG for webapp",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourSecurityGroupName"
+          }
+        ]
+      }
+    },
+    "ELBSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "ELBSG",
+        "GroupDescription": "SG created for ELB",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "VpcId": {
+          "Ref": "YourNameVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "ELBSG"
+          }
+        ]
+      }
+    },
+    "YourElb": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": {
+            "Fn::Join": [
+              "",
+              [
+                "HTTP:",
+                "80",
+                "/index.html"
+              ]
+            ]
+          },
+          "HealthyThreshold": "2",
+          "UnhealthyThreshold": "2",
+          "Interval": "20",
+          "Timeout": "3"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "ELBSG"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "Subnet1"
+          },
+          {
+            "Ref": "Subnet2"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourElb"
+          }
+        ]
+      }
+    },
+    "YourLaunchConfiguration": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "LaunchConfigurationName": "YourLaunchConfiguration",
+        "ImageId": {
+          "Fn::FindInMap": [
+            "RegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            "64"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "WebserverInstanceType"
+        },
+        "KeyName": {
+          "Ref": "WebserverKeyName"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "YourSecurityGroupName"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -ex \n",
+                "yum install httpd -y \n",
+                "chkconfig httpd on \n",
+                "echo '<h1>Things I have created </h1>' > /var/www/html/index.html \n",
+                "service httpd start"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "YourASG": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "LaunchConfigurationName": {
+          "Ref": "YourLaunchConfiguration"
+        },
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "Subnet1"
+          },
+          {
+            "Ref": "Subnet2"
+          }
+        ],
+        "MinSize": "1",
+        "MaxSize": "2",
+        "LoadBalancerNames": [
+          {
+            "Ref": "YourElb"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "YourLaunchConfiguration",
+            "PropagateAtLaunch": "true"
+          }
+        ]
+      }
+    },
+    "WebServerScaleUpPolicy": {
+      "Type": "AWS::AutoScaling::ScalingPolicy",
+      "Properties": {
+        "AdjustmentType": "PercentChangeInCapacity",
+        "AutoScalingGroupName": {
+          "Ref": "YourASG"
+        },
+        "Cooldown": "20",
+        "ScalingAdjustment": "1"
+      }
+    },
+    "WebServerScaleDownPolicy": {
+      "Type": "AWS::AutoScaling::ScalingPolicy",
+      "Properties": {
+        "AdjustmentType": "ChangeInCapacity",
+        "AutoScalingGroupName": {
+          "Ref": "YourASG"
+        },
+        "Cooldown": "20",
+        "ScalingAdjustment": "-1"
+      }
+    },
+    "CPUAlarmHigh": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Scale-up if CPU > 40% for 1 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "60",
+        "EvaluationPeriods": "1",
+        "Threshold": "40",
+        "AlarmActions": [
+          {
+            "Ref": "WebServerScaleUpPolicy"
+          }
+        ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": {
+              "Ref": "YourASG"
+            }
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "CPUAlarmLow": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Scale-down if CPU <20% for 1 min",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "60",
+        "EvaluationPeriods": "1",
+        "Threshold": "20",
+        "AlarmActions": [
+          {
+            "Ref": "WebServerScaleDownPolicy"
+          }
+        ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": {
+              "Ref": "YourASG"
+            }
+          }
+        ],
+        "ComparisonOperator": "LessThanThreshold"
+      }
+    }
+  },
+  "Outputs": {}
+}
